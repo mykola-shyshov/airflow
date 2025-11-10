@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
@@ -94,3 +96,21 @@ class TestCorrelationIdMiddleware:
 
         # Verify they didn't interfere with each other
         assert correlation_id_1 != correlation_id_2
+
+
+class TestExceptionHandler:
+    """Test the global exception handler for unhandled exceptions."""
+
+    def test_exception_handler_includes_error_details(self, client):
+        """Test that unhandled exceptions include error details in response."""
+        # Mock the health endpoint to raise an exception
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.health.health",
+            side_effect=ValueError("Test error message"),
+        ):
+            response = client.get("/execution/health")
+
+            assert response.status_code == 500
+            response_json = response.json()
+            assert response_json["message"] == "Internal server error"
+            assert response_json["details"] == "Test error message"
